@@ -51,27 +51,27 @@ def init_domain():
     Closure choices:
     0 - UDNS
     1 - Approximate Deconvolution
-    2 - ML AD LES (Discarded idea about filter width classification for AD)
+    2 - ML AD LES (Discarded idea about filter-width classification for AD)
     3 - Relaxation filtering
-    4 - ML SGS (JFM 2)
+    4 - ML SGS (J. Fluid Mech. 2)
     5 - Smagorinsky
     6 - Leith
-    7 - Nearest neighbor LES (ML SGS prediction used to choose best of Smag, Leith, AD) - (WIP)
+    7 - Nearest neighbor LES (ML SGS prediction used to choose best of Smag, Leith, AD)
     8 - Data-driven deconvolution (Phys. Fluids)
     9 - Feature SGS (Calculate SGS from non-stencil inputs) - too dissipative and needs truncation (WIP)
     10 - Dynamic Smagorinsky (Comput. Fluids 2017 formulation)
     11 - Dynamic Leith (Comput. Fluids 2017 formulation)
-    12 - Logistic regression classification - JFM 3
-    13 - Logistic regression blended - JFM 3
+    12 - Logistic regression classification - (J. Fluid Mech. 3)
+    13 - Logistic regression blended - (J. Fluid Mech. 3)
     14 - Model basis DNN - not dissipative enough (WIP)
     15 - Logistic regression through parallel ANNs (WIP CS-5783)
     16 - ILES for Jacobian - 3rd-order accurate (POF - Response)
     17 - FOU for Jacobian -  1st-order accurate (POF - Response)
-    18 - Central/ILES blending - (Submitted - Physica D)
+    18 - Central/ILES blending - (Submitted - Phys. D)
     19 - Logistic regression 5 class blended - (Validation)
     20 - Bardina model
     '''
-    closure_choice = 12
+    closure_choice = 13
 
     if problem == 'TGV':
         lt = 0.1

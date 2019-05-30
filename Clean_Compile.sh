@@ -30,4 +30,4 @@ f2py3 -c --fcompiler=gfortran -m ML_TBDNN ML_TBDNN.f95
 for x in *.cpython-36m-x86_64-linux-gnu.so; do mv "$x" "${x%.cpython-36m-x86_64-linux-gnu.so}.so"; done
 
 cd ..
-conda deactivate
+source deactivate

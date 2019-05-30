@@ -8,10 +8,10 @@ matrix:
     # NUMPY and SCIPY versions are set here as an example, but you can
     # add/remove environment variables, and use them below during the install.
 
-    - python: 3.6.8
+    - python: 3.6.7
       sudo: true
       dist: Ubuntu
-      env: NUMPY=1.14.3 MATPLOTLIB=3.0.2 FC=gfortran
+      env: NUMPY=1.16.3 MATPLOTLIB=3.1.0 FC=gfortran
 
 
 before_install:
@@ -40,8 +40,8 @@ install:
 
   - conda install --yes -c anaconda numpy=$NUMPY
   - conda install --yes -c conda-forge matplotlib=$MATPLOTLIB
-  - pip install tensorflow==1.12.0
-  - pip install keras==2.2.4
+  - conda install --yes -c conda-forge tensorflow==1.13.1
+  - conda install --yes -c conda-forge keras==2.2.4
 
 script:
   - source Clean_Compile.sh

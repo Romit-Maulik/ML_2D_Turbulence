@@ -2,9 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 from numpy import f2py
-from keras.models import Sequential, Model, load_model
-from keras.layers import Dense, dot, Input
-import keras.backend as K
+
+from tensorflow.keras.models import Sequential, Model, load_model
+from tensorflow.keras.layers import Dense, dot, Input
+import tensorflow.keras.backend as K
 
 #Standard functions
 from Fortran_Objects import Fortran_Functions, Spectral_Poisson, Multigrid_Solver
@@ -16,7 +17,6 @@ from Fortran_Objects import Standard_Models, Relaxation_Filtering
 from Fortran_Objects import Ml_Convolution, ML_Regression, ML_AD_Classification
 from Fortran_Objects import ML_Nearest_Neighbors, ML_Feature_Functions, ML_Logistic_Functions
 from Fortran_Objects import ML_TBDNN
-
 
 #-------------------------------------------------------------------------------------#
 #-------------------------------------------------------------------------------------#
@@ -71,7 +71,7 @@ def init_domain():
     19 - Logistic regression 5 class blended - (Validation)
     20 - Bardina model
     '''
-    closure_choice = 13
+    closure_choice = 12
 
     if problem == 'TGV':
         lt = 0.1
@@ -236,7 +236,7 @@ def load_pretrained_model():
 
     elif closure_choice == 12:
         # Initialization - just load model directly from hd5
-        model = load_model('Trained_Networks/ML_Logistic.hd5')
+        model = load_model('Trained_Networks/ML_Logistic_NAS.h5')
         ml_model = K.function([model.layers[0].input],
                               [model.layers[-1].output])  # One layer input, one regression output
 

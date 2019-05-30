@@ -24,7 +24,6 @@ from Fortran_Objects import ML_TBDNN
 #-------------------------------------------------------------------------------------#
 #-------------------------------------------------------------------------------------#
 def init_domain():
-
     global nx, ny, kappa, Re_n, lx, ly, lt, nt, dt, dx, dy, gs_tol
     global problem
     global sigma#For AD-LES
@@ -70,13 +69,11 @@ def init_domain():
     18 - Central/ILES blending - (Submitted - Phys. D)
     19 - Logistic regression 5 class blended - (Validation)
     20 - Bardina model
+    21 - Neural Architecture Search for turbulence model classification
     '''
-    closure_choice = 12
+    closure_choice = 0
 
-    if problem == 'TGV':
-        lt = 0.1
-    else:
-        lt = 4.0
+    lt = 4.0 # Final time
 
     dt = 1.0e-3
     nt = int(lt/dt)
@@ -87,86 +84,40 @@ def init_domain():
     return omega, psi
 
 def initialize_ic_bc(omega, psi):
-    if problem == 'TGV':
-        for i in range(nx):
-            for j in range(ny):
-                x = float(i) * dx
-                y = float(j) * dy
-                omega[i, j] = 2.0 * kappa * np.cos(kappa * x) * np.cos(kappa * y)
-                psi[i, j] = 1.0 / kappa * np.cos(kappa * x) * np.cos(kappa * y)
-
-    elif problem == 'HIT':
-        Fortran_Functions.hit_init_cond(omega, dx, dy)
-
-        Spectral_Poisson.solve_poisson(psi, -omega, dx, dy)
+    Fortran_Functions.hit_init_cond(omega, dx, dy)
+    Spectral_Poisson.solve_poisson(psi, -omega, dx, dy)
 
 def post_process(omega,psi):
 
-    if problem == 'TGV':
+    fig, ax = plt.subplots(nrows=1,ncols=1)
 
-        fig, ax = plt.subplots(nrows=3,ncols=1)
+    #levels = np.linspace(-50,50,10)
 
-        levels = np.linspace(-4,4,10)
+    ax.set_title("Numerical Solution - HIT")
+    plot1 = ax.contourf(omega[:, :])#,levels=levels)
+    plt.colorbar(plot1, format="%.2f")
 
-        ax[0].set_title("Numerical Solution - TGV")
-        plot1 = ax[0].contourf(omega[:, :],levels=levels)
-        plt.colorbar(plot1, format="%.2f",ax=ax[0])
+    plt.show()
 
-        omega_true = np.zeros(shape=(nx,ny),dtype='double')
+    arr_len = int(0.5*np.sqrt(float(nx*nx + ny*ny)))-1
+    eplot = np.zeros(arr_len+1,dtype='double')
+    kplot = np.arange(0,arr_len+1,1,dtype='double')
 
-        for i in range(nx):
-            for j in range(ny):
+    Fortran_Functions.spec(omega,eplot)
 
-                x = float(i) * dx
-                y = float(j) * dy
+    scale_plot = np.array([[10,0.1],[100,1.0e-4]])
 
-                omega_true[i, j] = 2.0 * kappa * np.cos(kappa * x) * np.cos(kappa * y)*np.exp(-2.0*kappa*kappa*lt/Re_n)
+    plt.loglog(kplot,eplot)
+    plt.loglog(scale_plot[:,0],scale_plot[:,1])
+    plt.xlim([1,1.0e3])
+    plt.ylim([1e-8,1])
+    plt.xlabel('k')
+    plt.ylabel('E(k)')
+    plt.title('Angle averaged energy spectra')
+    plt.show()
 
-        ax[1].set_title("Exact Solution")
-        plot2 = ax[1].contourf(omega_true[:, :],levels=levels)
-        plt.colorbar(plot2, format="%.2f",ax=ax[1])
-
-
-        #levels = np.linspace(0.0,1.0e-3,10)
-
-        ax[2].set_title("L1 - Error")
-        plot3 = ax[2].contourf(np.abs(omega_true[:, :]-omega[:,:]))
-        plt.colorbar(plot3,ax=ax[2])
-
-        plt.show()
-
-
-    elif problem == 'HIT':
-
-        fig, ax = plt.subplots(nrows=1,ncols=1)
-
-        #levels = np.linspace(-50,50,10)
-
-        ax.set_title("Numerical Solution - HIT")
-        plot1 = ax.contourf(omega[:, :])#,levels=levels)
-        plt.colorbar(plot1, format="%.2f")
-
-        plt.show()
-
-        arr_len = int(0.5*np.sqrt(float(nx*nx + ny*ny)))-1
-        eplot = np.zeros(arr_len+1,dtype='double')
-        kplot = np.arange(0,arr_len+1,1,dtype='double')
-
-        Fortran_Functions.spec(omega,eplot)
-
-        scale_plot = np.array([[10,0.1],[100,1.0e-4]])
-
-        plt.loglog(kplot,eplot)
-        plt.loglog(scale_plot[:,0],scale_plot[:,1])
-        plt.xlim([1,1.0e3])
-        plt.ylim([1e-8,1])
-        plt.xlabel('k')
-        plt.ylabel('E(k)')
-        plt.title('Angle averaged energy spectra')
-        plt.show()
-
-        np.save('Field.npy',omega)
-        np.save('Spectra.npy',[kplot, eplot])
+    np.save('Field.npy',omega)
+    np.save('Spectra.npy',[kplot, eplot])
 
 #-------------------------------------------------------------------------------------#
 #-------------------------------------------------------------------------------------#
@@ -236,7 +187,7 @@ def load_pretrained_model():
 
     elif closure_choice == 12:
         # Initialization - just load model directly from hd5
-        model = load_model('Trained_Networks/ML_Logistic_NAS.h5')
+        model = load_model('Trained_Networks/ML_Logistic.hd5')
         ml_model = K.function([model.layers[0].input],
                               [model.layers[-1].output])  # One layer input, one regression output
 
@@ -274,6 +225,12 @@ def load_pretrained_model():
     elif closure_choice == 19:
         # Initialization - just load model directly from hd5
         model = load_model('Trained_Networks/ML_Logistic_5.hd5')
+        ml_model = K.function([model.layers[0].input],
+                              [model.layers[-1].output])  # One layer input, one regression output
+
+    elif closure_choice == 21:
+        # Initialization - just load model directly from h5 - Neural Architecture Search
+        model = load_model('Trained_Networks/ML_Logistic_NAS.h5')
         ml_model = K.function([model.layers[0].input],
                               [model.layers[-1].output])  # One layer input, one regression output
 
@@ -432,6 +389,26 @@ def deploy_model_feature_regression(omega,psi,ml_model):
     return sgs
 
 def deploy_model_logistic(omega,psi,ml_model):
+
+    #Sampling the field randomly for omega stencils
+    sampling_matrix = ML_Logistic_Functions.field_sampler(omega, psi)
+    #Classify - softmax
+    return_matrix = ml_model([sampling_matrix])[0]#Using precompiled ML network
+
+    # Smagorinsky model estimate
+    sgs_smag = Standard_Models.smag_source_term(omega, psi, dx, dy)
+
+    # AD estimate
+    sfs_ad = Standard_Models.approximate_deconvolution(omega, psi, dx, dy, sigma)
+
+    # Defining the sgs array
+    sgs = np.zeros(shape=(nx,ny),dtype='double', order='F')
+    # Calculating the optimal SGS model according to the prediction
+    ML_Logistic_Functions.sgs_calculate(return_matrix, sgs, sgs_smag, sfs_ad)
+
+    return sgs
+
+def deploy_model_logistic_nas(omega,psi,ml_model):
 
     #Sampling the field randomly for omega stencils
     sampling_matrix = ML_Logistic_Functions.field_sampler(omega, psi)
@@ -634,11 +611,6 @@ def tvdrk3_fortran_rf_les(omega,psi):
 
     omega[:,:] = oneth * omega[:,:] + twoth * omega_2[:,:] + twoth * dt * (f[:,:])
 
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j])
-
-
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
 
@@ -675,10 +647,6 @@ def tvdrk3_fortran_ml_ad_les(omega,psi,ml_model):
     sfs = ad_sfs_calc(omega_2,psi)
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sfs[:, :])
-
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j] + sfs[i, j])
 
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
@@ -718,10 +686,6 @@ def tvdrk3_fortran_ml_sgs(omega,psi,ml_model):
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sgs[:, :])
 
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j] + sgs[i, j])
-
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
 
@@ -759,10 +723,6 @@ def tvdrk3_fortran_ml_nearest_neighbor(omega,psi,ml_model):
     sgs = deploy_model_nearest_neighbor(omega_2,psi,ml_model)
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sgs[:, :])
-
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j] + sgs[i, j])
 
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
@@ -802,10 +762,6 @@ def tvdrk3_fortran_smag_sgs(omega,psi):
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sgs[:, :])
 
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j] + sgs[i, j])
-
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
 
@@ -843,10 +799,6 @@ def tvdrk3_fortran_dyn_smag_sgs(omega,psi):
     sgs = dynamic_smag_calc(omega_2,psi)
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sgs[:, :])
-
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j] + sgs[i, j])
 
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
@@ -886,10 +838,6 @@ def tvdrk3_fortran_Ml_Convolution(omega,psi,ml_model_forward, ml_model_inverse):
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sgs[:, :])
 
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j] + sgs[i, j])
-
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
 
@@ -928,10 +876,6 @@ def tvdrk3_fortran_leith_sgs(omega,psi):
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sgs[:, :])
 
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j] + sgs[i, j])
-
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
 
@@ -949,7 +893,6 @@ def tvdrk3_fortran_dyn_leith_sgs(omega,psi):
     omega_1 = omega + dt * (f + sgs)
 
     # Fortran update for Poisson Equation
-    #Multigrid_Solver.solve_poisson_periodic(psi, -omega_1, dx, dy, gs_tol)
     Spectral_Poisson.solve_poisson(psi,-omega_1, dx, dy)
 
     # Step 2
@@ -969,10 +912,6 @@ def tvdrk3_fortran_dyn_leith_sgs(omega,psi):
     sgs = dynamic_leith_calc(omega_2,psi)
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sgs[:, :])
-
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j] + sgs[i, j])
 
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
@@ -1012,10 +951,6 @@ def tvdrk3_fortran_ml_feature_sgs(omega,psi,ml_model):
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sgs[:, :])
 
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j] + sgs[i, j])
-
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
 
@@ -1047,10 +982,6 @@ def tvdrk3_fortran(omega,psi):
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :])
 
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i,j] = oneth*omega[i,j] + twoth*omega_2[i,j] + twoth*dt*(f[i,j])
-
     #Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
 
@@ -1081,10 +1012,6 @@ def tvdrk3_fortran_iles(omega,psi):
     f = Fortran_Functions.rhs_periodic_iles(psi,omega_2, dx, dy, Re_n)
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :])
-
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i,j] = oneth*omega[i,j] + twoth*omega_2[i,j] + twoth*dt*(f[i,j])
 
     #Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
@@ -1156,10 +1083,6 @@ def tvdrk3_fortran_fou(omega,psi):
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :])
 
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i,j] = oneth*omega[i,j] + twoth*omega_2[i,j] + twoth*dt*(f[i,j])
-
     #Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
 
@@ -1194,10 +1117,6 @@ def tvdrk3_fortran_ad_les(omega,psi):
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sfs[:, :])
 
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i,j] = oneth*omega[i,j] + twoth*omega_2[i,j] + twoth*dt*(f[i,j]+sfs[i,j])
-
     #Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
 
@@ -1231,10 +1150,6 @@ def tvdrk3_fortran_bd_les(omega,psi):
     sfs = bd_sfs_calc(omega_2, psi)
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sfs[:, :])
-
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i,j] = oneth*omega[i,j] + twoth*omega_2[i,j] + twoth*dt*(f[i,j]+sfs[i,j])
 
     #Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
@@ -1274,9 +1189,44 @@ def tvdrk3_fortran_ml_logistic(omega,psi,ml_model):
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sgs[:, :])
 
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j] + sgs[i, j])
+    # Fortran update for Poisson Equation
+    Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
+
+
+def tvdrk3_fortran_ml_logistic_nas(omega,psi,ml_model):
+
+    oneth = 1.0 / 3.0
+    twoth = 2.0 / 3.0
+
+    # Step 1
+    # Calculate RHS
+    f = Fortran_Functions.rhs_periodic(psi, omega, dx, dy, Re_n)
+    #Need to add ML based sgs computation
+    sgs = deploy_model_logistic_nas(omega,psi,ml_model)
+
+    omega_1 = omega + dt * (f + sgs)
+
+    # Fortran update for Poisson Equation
+    #Multigrid_Solver.solve_poisson_periodic(psi, -omega_1, dx, dy, gs_tol)
+    Spectral_Poisson.solve_poisson(psi,-omega_1, dx, dy)
+
+    # Step 2
+    # Calculate RHS
+    f = Fortran_Functions.rhs_periodic(psi, omega_1, dx, dy, Re_n)
+    #Need to add ML based sgs computation
+    sgs = deploy_model_logistic_nas(omega_1,psi,ml_model)
+    omega_2 = 0.75 * omega + 0.25 * omega_1 + 0.25 * dt * (f + sgs)
+
+    # Fortran update for Poisson Equation
+    Spectral_Poisson.solve_poisson(psi,-omega_2, dx, dy)
+
+    # Step 2
+    # Calculate RHS
+    f = Fortran_Functions.rhs_periodic(psi, omega_2, dx, dy, Re_n)
+    #Need to add ML based sgs computation
+    sgs = deploy_model_logistic_nas(omega_2,psi,ml_model)
+
+    omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sgs[:, :])
 
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
@@ -1316,10 +1266,6 @@ def tvdrk3_fortran_ml_logistic_blended(omega,psi,ml_model):
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sgs[:, :])
 
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j] + sgs[i, j])
-
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
 
@@ -1357,10 +1303,6 @@ def tvdrk3_fortran_ml_logistic_blended_five_class(omega,psi,ml_model):
     sgs = deploy_model_logistic_blended_five_class(omega_2,psi,ml_model)
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sgs[:, :])
-
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j] + sgs[i, j])
 
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
@@ -1400,10 +1342,6 @@ def tvdrk3_fortran_ML_TBDNN(omega,psi,ml_model):
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sgs[:, :])
 
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j] + sgs[i, j])
-
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
 
@@ -1442,10 +1380,6 @@ def tvdrk3_fortran_ml_par_log(omega,psi,ml_model):
 
     omega[:, :] = oneth * omega[:, :] + twoth * omega_2[:, :] + twoth * dt * (f[:, :] + sgs[:, :])
 
-    # for i in range(nx):
-    #     for j in range(ny):
-    #         omega[i, j] = oneth * omega[i, j] + twoth * omega_2[i, j] + twoth * dt * (f[i, j] + sgs[i, j])
-
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
 #-------------------------------------------------------------------------------------#
@@ -1461,7 +1395,7 @@ def main_func():
 
     initialize_ic_bc(omega,psi)
 
-    ml_closure_list_1 = [2, 4, 7, 9, 12, 13, 14, 15, 18, 19]
+    ml_closure_list_1 = [2, 4, 7, 9, 12, 13, 14, 15, 18, 19, 21]
     ml_closure_list_2 = [8]
 
     if closure_choice in ml_closure_list_1:
@@ -1525,6 +1459,8 @@ def main_func():
             tvdrk3_fortran_ml_logistic_blended_five_class(omega, psi, ml_model)
         elif closure_choice == 20:
         	tvdrk3_fortran_bd_les(omega,psi)
+        elif closure_choice == 21: # Neural Architecture Search for turbulence model classification
+            tvdrk3_fortran_ml_logistic_nas(omega, psi, ml_model)
 
         if np.isnan(np.sum(omega))==1:
             print('overflow')

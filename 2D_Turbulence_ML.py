@@ -7,6 +7,9 @@ from tensorflow.keras.models import Sequential, Model, load_model
 from tensorflow.keras.layers import Dense, dot, Input
 import tensorflow.keras.backend as K
 
+import tensorflow as tf
+from tensorflow.keras.backend import set_session
+
 #Standard functions
 from Fortran_Objects import Fortran_Functions, Spectral_Poisson, Multigrid_Solver
 
@@ -125,6 +128,9 @@ def post_process(omega,psi):
 #-------------------------------------------------------------------------------------#
 #-------------------------------------------------------------------------------------#
 def load_pretrained_model():
+    sess = tf.Session()
+    set_session(sess)
+    sess.run(tf.global_variables_initializer())
 
     if closure_choice == 2:
         # Initialization - just load model directly from hd5

@@ -3,12 +3,12 @@ import matplotlib.pyplot as plt
 import time
 from numpy import f2py
 
+import tensorflow as tf
+from tensorflow.keras.backend import set_session
+
 from tensorflow.keras.models import Sequential, Model, load_model
 from tensorflow.keras.layers import Dense, dot, Input
 import tensorflow.keras.backend as K
-
-import tensorflow as tf
-from tensorflow.keras.backend import set_session
 
 #Standard functions
 from Fortran_Objects import Fortran_Functions, Spectral_Poisson, Multigrid_Solver
@@ -20,6 +20,10 @@ from Fortran_Objects import Standard_Models, Relaxation_Filtering
 from Fortran_Objects import Ml_Convolution, ML_Regression, ML_AD_Classification
 from Fortran_Objects import ML_Nearest_Neighbors, ML_Feature_Functions, ML_Logistic_Functions
 from Fortran_Objects import ML_TBDNN
+
+#Seeds
+np.random.seed(10)
+tf.random.set_random_seed(10)
 
 #-------------------------------------------------------------------------------------#
 #-------------------------------------------------------------------------------------#

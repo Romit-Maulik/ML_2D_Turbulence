@@ -30,7 +30,7 @@ def validate_model(features, targets):
     validation_features = features[idx,:]
     validation_targets = targets[idx,:]
 
-    model = load_model('ML_Logistic_NAS.h5')
+    model = load_model('best_model.hd5')
 
     # Classify - softmax
     predictions = model.predict(validation_features)

@@ -78,7 +78,7 @@ def init_domain():
     20 - Bardina model
     21 - Neural Architecture Search for turbulence model classification
     '''
-    closure_choice = 21
+    closure_choice = 1
 
     lt = 4.0 # Final time
 

@@ -6,6 +6,9 @@ from keras.layers import Dense, Input
 from keras.callbacks import ModelCheckpoint
 from keras import metrics
 
+np.random.seed(10)
+tf.random.set_random_seed(10)
+
 def create_keras_model(features, targets):
 
     #Import parameters from dict
@@ -38,7 +41,7 @@ def create_keras_model(features, targets):
 
     custom_model = Model(inputs=input_layer, outputs=op)
 
-    filepath = "best_model.hd5"
+    filepath = "ML_Logistic.hd5"
     checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
     callbacks_list = [checkpoint]
 

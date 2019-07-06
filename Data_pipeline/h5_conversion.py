@@ -42,6 +42,7 @@ for file_num in range(11):
     sgs_lt = np.reshape(data[:,7],newshape=(side_shape,side_shape))
     sgs_ad = np.reshape(data[:,8],newshape=(side_shape,side_shape))
     sgs = np.reshape(data[:,9],newshape=(side_shape,side_shape))
+    nue = np.reshape(data[:,10],newshape=(side_shape,side_shape))
 
     ad_diff = np.subtract(sgs,sgs_ad)**2
     lt_diff = np.subtract(sgs,sgs_lt)**2
@@ -63,8 +64,9 @@ for file_num in range(11):
     h5f.create_dataset('strainf_'+str(file_num), data=strainf)
     h5f.create_dataset('vortgradf_'+str(file_num), data=vortgradf)
     h5f.create_dataset('lapf_'+str(file_num), data=lapf)
-    h5f.create_dataset('one_hot_sgs_'+str(file_num), data=one_hot_sgs) # For classification tasks
+    h5f.create_dataset('one_hot_sgs_'+str(file_num), data=one_hot_sgs) # For hypothesis segregation according to closeness
     h5f.create_dataset('sgs_'+str(file_num), data=sgs) # For regression tasks
+    h5f.create_dataset('nue_'+str(file_num), data=sgs) # For hypothesis segregation according to ev
 
 h5f.close()
 

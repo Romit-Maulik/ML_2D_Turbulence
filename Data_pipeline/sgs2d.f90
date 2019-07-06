@@ -142,7 +142,7 @@ program computesgs2d
 		do j=0,nyc
 		do i=0,nxc
 		write(19,*)wc(i,j),sc(i,j),inv(i,j,1),inv(i,j,2),lap_c(i,j),vel_abs(i,j),sgs_models(i,j,1),sgs_models(i,j,2),&
-		sgs_models(i,j,3),sgs(i,j)
+		sgs_models(i,j,3),sgs(i,j),nue(i,j)
 		end do
 		end do
 		close(19)

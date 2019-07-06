@@ -59,7 +59,7 @@ for file_num in range(11):
             else:
                 one_hot_sgs[i,j] = [0,0,1]
 
-    h5f.create_dataset('omegaf_'+str(file_num), data=vortf)
+    h5f.create_dataset('vortf_'+str(file_num), data=vortf)
     h5f.create_dataset('streamf_'+str(file_num), data=streamf)
     h5f.create_dataset('strainf_'+str(file_num), data=strainf)
     h5f.create_dataset('vortgradf_'+str(file_num), data=vortgradf)

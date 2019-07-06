@@ -11,6 +11,8 @@ sys.path.insert(0,FORTRAN_OBJECTS)
 import Spectral_Poisson
 
 # Read DNS data files and save to h5
+h5_filename = '2D_Turbulence_Databank.h5'
+h5f = h5py.File(h5_filename, 'w')
 for file_num in range(11):
     # # DNS resolution
     # filename = 'fort.'+str(500+file_num)
@@ -56,14 +58,14 @@ for file_num in range(11):
             else:
                 one_hot_sgs[i,j] = [0,0,1]
 
-    h5_filename = 'time_'+str(file_num)+'.h5'
-    h5f = h5py.File(h5_filename, 'w')
-    h5f.create_dataset('omegaf', data=vortf)
-    h5f.create_dataset('streamf', data=streamf)
-    h5f.create_dataset('strainf', data=strainf)
-    h5f.create_dataset('vortgradf', data=vortgradf)
-    h5f.create_dataset('lapf', data=lapf)
-    h5f.create_dataset('one_hot_sgs', data=one_hot_sgs) # For classification tasks
-    h5f.close()
+    h5f.create_dataset('omegaf_'+str(file_num), data=vortf)
+    h5f.create_dataset('streamf_'+str(file_num), data=streamf)
+    h5f.create_dataset('strainf_'+str(file_num), data=strainf)
+    h5f.create_dataset('vortgradf_'+str(file_num), data=vortgradf)
+    h5f.create_dataset('lapf_'+str(file_num), data=lapf)
+    h5f.create_dataset('one_hot_sgs_'+str(file_num), data=one_hot_sgs) # For classification tasks
+    h5f.create_dataset('sgs_'+str(file_num), data=sgs) # For regression tasks
+
+h5f.close()
 
     

@@ -25,6 +25,7 @@ f2py3 -c --fcompiler=gfortran -m ML_Feature_Functions ML_Feature_Functions.f95
 f2py3 -c --fcompiler=gfortran -m ML_Logistic_Functions ML_Logistic_Functions.f95
 f2py3 -c --fcompiler=gfortran -m ML_AD_Classification ML_AD_Classification.f95
 f2py3 -c --fcompiler=gfortran -m ML_TBDNN ML_TBDNN.f95
+f2py3 -c --fcompiler=gfortran -m Temporal_Tracker Temporal_Tracker.f95
 
 #Change this according to your distribution of python
 for x in *.cpython-36m-x86_64-linux-gnu.so; do mv "$x" "${x%.cpython-36m-x86_64-linux-gnu.so}.so"; done

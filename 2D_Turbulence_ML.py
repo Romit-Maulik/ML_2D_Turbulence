@@ -21,6 +21,9 @@ from Fortran_Objects import Ml_Convolution, ML_Regression, ML_AD_Classification
 from Fortran_Objects import ML_Nearest_Neighbors, ML_Feature_Functions, ML_Logistic_Functions
 from Fortran_Objects import ML_TBDNN
 
+# Temporal trackers
+from Fortran_Objects import Temporal_Tracker
+
 #Seeds
 np.random.seed(10)
 tf.random.set_random_seed(10)
@@ -36,6 +39,7 @@ def init_domain():
     global sigma#For AD-LES
     global closure_choice
     global n_samples #For ML-AD-LES framework
+    global class_tracker, class_use
     
     nx = 256
     ny = 256
@@ -78,7 +82,8 @@ def init_domain():
     20 - Bardina model
     21 - Neural Architecture Search for turbulence model classification
     '''
-    closure_choice = 1
+    closure_choice = 12
+    class_use = False
 
     lt = 4.0 # Final time
 
@@ -87,6 +92,16 @@ def init_domain():
 
     omega = np.zeros(shape=(nx,ny),dtype='double', order='F')
     psi = np.zeros(shape=(nx, ny), dtype='double', order='F')
+
+    # Temporal trackers
+    if closure_choice == 12 or closure_choice == 13 or closure_choice == 18 or closure_choice == 21:
+        n_classes = 3 # For model classification/blending
+        class_use = True
+        class_tracker = np.zeros(shape=(n_classes),dtype='int')
+    elif closure_choice == 19:
+        n_classes = 5 # For model classification/blending
+        class_use = True
+        class_tracker = np.zeros(shape=(n_classes),dtype='int')
 
     return omega, psi
 
@@ -416,6 +431,9 @@ def deploy_model_logistic(omega,psi,ml_model):
     # Calculating the optimal SGS model according to the prediction
     ML_Logistic_Functions.sgs_calculate(return_matrix, sgs, sgs_smag, sfs_ad)
 
+    # Track classifications
+    classification_tracker(return_matrix)
+
     return sgs
 
 def deploy_model_logistic_nas(omega,psi,ml_model):
@@ -436,6 +454,9 @@ def deploy_model_logistic_nas(omega,psi,ml_model):
     # Calculating the optimal SGS model according to the prediction
     ML_Logistic_Functions.sgs_calculate(return_matrix, sgs, sgs_smag, sfs_ad)
 
+    # Track classifications
+    classification_tracker(return_matrix)
+
     return sgs
 
 def deploy_model_iles_switching(omega,psi,ml_model):
@@ -444,6 +465,9 @@ def deploy_model_iles_switching(omega,psi,ml_model):
     sampling_matrix = ML_Logistic_Functions.field_sampler(omega, psi)
     #Classify - softmax
     return_matrix = ml_model([sampling_matrix])[0]#Using precompiled ML network
+
+    # Track classifications
+    classification_tracker(return_matrix)
 
     return return_matrix
 
@@ -464,6 +488,9 @@ def deploy_model_logistic_blended(omega,psi,ml_model):
     sgs = np.zeros(shape=(nx,ny),dtype='double', order='F')
     # Calculating the optimal SGS model according to the prediction
     ML_Logistic_Functions.sgs_calculate_blended(return_matrix, sgs, sgs_smag, sfs_ad)
+
+    # Track classifications
+    classification_tracker(return_matrix)
 
     return sgs
 
@@ -490,6 +517,9 @@ def deploy_model_logistic_blended_five_class(omega,psi,ml_model):
     sgs = np.zeros(shape=(nx,ny),dtype='double', order='F')
     # Calculating the optimal SGS model according to the prediction
     ML_Logistic_Functions.sgs_calculate_blended_five_class(return_matrix, sgs, sgs_leith, sgs_smag, sfs_ad, sfs_bd)
+
+    # Track classifications
+    classification_tracker(return_matrix)
 
     return sgs
 
@@ -1392,6 +1422,25 @@ def tvdrk3_fortran_ml_par_log(omega,psi,ml_model):
 
     # Fortran update for Poisson Equation
     Spectral_Poisson.solve_poisson(psi,-omega, dx, dy)
+
+#-------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------#
+# Temporal quantity trackers
+#-------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------#
+def tke_tracker(psi):
+    return Temporal_Tracker.tke_tracker(psi,dx,dy)
+
+def ens_tracker(omega):
+    return Temporal_Tracker.enstrophy_tracker(omega)
+
+def var_tracker(omega):
+    return Temporal_Tracker.vort_var_tracker(omega)
+
+def classification_tracker(return_matrix):
+    global class_tracker # Since we are modifying this
+    Temporal_Tracker.classification_tracker(return_matrix,class_tracker)
+
 #-------------------------------------------------------------------------------------#
 #-------------------------------------------------------------------------------------#
 #Main time integrator
@@ -1416,8 +1465,10 @@ def main_func():
     t = 0.0
 
     clock_time_init = time.clock()
-    # Defining numpy array for storing sigma
+    # Defining numpy array for storing temporal info
     sigma_history = np.asarray([sigma], dtype='double')
+    tke_counter = np.zeros(shape=(nt,3),dtype='double')
+    class_counter = np.zeros(shape=(nt,3), dtype='int')
 
     for tstep in range(nt):
 
@@ -1476,12 +1527,21 @@ def main_func():
             print('overflow')
             exit()
 
+        # Measurement of temporal quantities
+        tke_counter[tstep, 0] = tke_tracker(psi)
+        tke_counter[tstep, 1] = ens_tracker(omega)
+        tke_counter[tstep, 2] = var_tracker(omega)
+        class_counter[tstep,:] = class_tracker[:]
+
 
     total_clock_time = time.clock()-clock_time_init
 
     print('Total Clock Time = ',total_clock_time)
-
     post_process(omega,psi)
+
+    np.savetxt('Time_Evolution.txt',tke_counter)
+    if class_use:
+        np.savetxt('Classification_history.txt',class_counter)
 
     if closure_choice == 2:
         np.savetxt('Sigma_history.txt',sigma_history)

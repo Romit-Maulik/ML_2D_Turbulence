@@ -82,7 +82,7 @@ def init_domain():
     20 - Bardina model
     21 - Neural Architecture Search for turbulence model classification
     '''
-    closure_choice = 12
+    closure_choice = 16
     class_use = False
 
     lt = 4.0 # Final time
@@ -1528,10 +1528,11 @@ def main_func():
             exit()
 
         # Measurement of temporal quantities
-        tke_counter[tstep, 0] = tke_tracker(psi)
-        tke_counter[tstep, 1] = ens_tracker(omega)
-        tke_counter[tstep, 2] = var_tracker(omega)
-        class_counter[tstep,:] = class_tracker[:]
+        if class_use:
+            tke_counter[tstep, 0] = tke_tracker(psi)
+            tke_counter[tstep, 1] = ens_tracker(omega)
+            tke_counter[tstep, 2] = var_tracker(omega)
+            class_counter[tstep,:] = class_tracker[:]
 
 
     total_clock_time = time.clock()-clock_time_init

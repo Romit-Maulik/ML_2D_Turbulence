@@ -1528,10 +1528,10 @@ def main_func():
             exit()
 
         # Measurement of temporal quantities
+        tke_counter[tstep, 0] = tke_tracker(psi)
+        tke_counter[tstep, 1] = ens_tracker(omega)
+        tke_counter[tstep, 2] = var_tracker(omega)
         if class_use:
-            tke_counter[tstep, 0] = tke_tracker(psi)
-            tke_counter[tstep, 1] = ens_tracker(omega)
-            tke_counter[tstep, 2] = var_tracker(omega)
             class_counter[tstep,:] = class_tracker[:]
 
 

@@ -1,10 +1,14 @@
-from keras.models import Sequential, Model
-from keras.layers import Dense, dot, Input
-import keras.backend as K
-from keras.callbacks import ModelCheckpoint
-from keras.models import load_model
-
+import tensorflow as tf
+tf.set_random_seed(10)
 import numpy as np
+np.random.seed(10)
+
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Dense, dot, Input
+import tensorflow.keras.backend as K
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.models import load_model
+
 
 def create_keras_model(parameter_dict, training_dict, validation_dict):
 
@@ -16,8 +20,8 @@ def create_keras_model(parameter_dict, training_dict, validation_dict):
     training_outputs = training_dict[1]
 
     # Import validation data from dict
-    validation_inputs = training_dict[0]
-    validation_outputs = training_dict[1]
+    validation_inputs = validation_dict[0]
+    validation_outputs = validation_dict[1]
 
     # initialization of turbulence models basis model
     model = Sequential()
@@ -87,7 +91,10 @@ def load_data():
 
     return [n_inputs], [training_inputs, training_source], [validation_inputs, validation_source]
 
-#Main function
-parameter_dict, training_dict, validation_dict = load_data()
+if __name__ == '__main__':
 
-create_keras_model(parameter_dict, training_dict, validation_dict)
+
+    #Main function
+    parameter_dict, training_dict, validation_dict = load_data()
+
+    create_keras_model(parameter_dict, training_dict, validation_dict)
